@@ -1,9 +1,9 @@
 #ifndef REST_INTERFACE_H
 #define REST_INTERFACE_H
 
-#include <concepts>
 #include <string_view>
 #include <cstddef>
+#include <span>
 
 
 
@@ -34,26 +34,17 @@ namespace CommunicationLibrary
             std::size_t body_size;
         };
 
-        template<typename T>
         class RestInterface
         {
             public:
                 virtual ~RestInterface() = default;
-
-                RestInterface(const std::string_view& routeTable);
-                RestInterface(const std::string_view& routeTable, const std::string_view& baseUrl);
-                RestInterface(const std::string_view& routeTable, const std::string_view& baseUrl, const std::string_view& apiKey);
-                RestInterface(const std::string_view& routeTable, const std::string_view& baseUrl, const std::string_view& apiKey, const std::string_view& apiSecret);
-                RestInterface(const std::string_view& routeTable, const std::string_view& baseUrl, const std::string_view& apiKey, const std::string_view& apiSecret, const std::string_view& apiToken);
-                RestInterface(const std::string_view& routeTable, const std::string_view& baseUrl, const std::string_view& apiKey, const std::string_view& apiSecret, const std::string_view& apiToken, const std::string_view& apiBearer);
 
                 // Core REST verbs (request writes response into caller-provided buffer)
                 virtual response_info get(
                     const std::string_view& path,
                     const header_view* headers,
                     std::size_t header_count,
-                    char* out_body,
-                    std::size_t out_capacity) = 0;
+                    std::span<char> out_body) = 0;
 
                 virtual response_info head(
                     const std::string_view& path,
@@ -64,8 +55,7 @@ namespace CommunicationLibrary
                     const std::string_view& path,
                     const header_view* headers,
                     std::size_t header_count,
-                    char* out_body,
-                    std::size_t out_capacity) = 0;
+                    std::span<char> out_body) = 0;
 
                 virtual response_info post(
                     const std::string_view& path,
@@ -73,8 +63,7 @@ namespace CommunicationLibrary
                     const std::string_view& content_type,
                     const header_view* headers,
                     std::size_t header_count,
-                    char* out_body,
-                    std::size_t out_capacity) = 0;
+                    std::span<char> out_body) = 0;
 
                 virtual response_info put(
                     const std::string_view& path,
@@ -82,8 +71,7 @@ namespace CommunicationLibrary
                     const std::string_view& content_type,
                     const header_view* headers,
                     std::size_t header_count,
-                    char* out_body,
-                    std::size_t out_capacity) = 0;
+                    std::span<char> out_body) = 0;
 
                 virtual response_info patch(
                     const std::string_view& path,
@@ -91,8 +79,11 @@ namespace CommunicationLibrary
                     const std::string_view& content_type,
                     const header_view* headers,
                     std::size_t header_count,
-                    char* out_body,
-                    std::size_t out_capacity) = 0;
+                    std::span<char> out_body) = 0;
+            protected:
+                RestInterface() = default;
+                RestInterface(const RestInterface&) = default;
+                RestInterface& operator=(const RestInterface&) = default;
         };
     }
 }
