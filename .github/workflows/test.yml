@@ -1,0 +1,120 @@
+name: Contract Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        compiler: [gcc, clang]
+        exclude:
+          - os: windows-latest
+            compiler: clang
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v1.13
+      with:
+        cmake-version: '3.24.0'
+
+    - name: Setup C++ Compiler
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        if [ "${{ matrix.compiler }}" = "gcc" ]; then
+          sudo apt-get update
+          sudo apt-get install -y g++-11
+          echo "CC=gcc-11" >> $GITHUB_ENV
+          echo "CXX=g++-11" >> $GITHUB_ENV
+        elif [ "${{ matrix.compiler }}" = "clang" ]; then
+          sudo apt-get update
+          sudo apt-get install -y clang-14
+          echo "CC=clang-14" >> $GITHUB_ENV
+          echo "CXX=clang++-14" >> $GITHUB_ENV
+        fi
+
+    - name: Setup C++ Compiler (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        echo "Using default MSVC compiler"
+
+    - name: Create Build Directory
+      run: mkdir build && cd build
+
+    - name: Configure CMake
+      run: |
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+
+    - name: Build Tests
+      run: |
+        cd build
+        cmake --build . --config Debug --target contract_tests
+
+    - name: Run Contract Tests
+      run: |
+        cd build
+        ./test/contract_tests
+
+    - name: Run CMake Tests
+      run: |
+        cd build
+        ctest --output-on-failure
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.compiler }}
+        path: build/Testing/
+        retention-days: 7
+
+  # Cross-compilation test for embedded targets
+  embedded-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v1.13
+      with:
+        cmake-version: '3.24.0'
+
+    - name: Install ARM GCC Toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-arm-none-eabi g++-arm-none-eabi
+
+    - name: Create Build Directory
+      run: mkdir build-embedded && cd build-embedded
+
+    - name: Configure CMake for ARM
+      run: |
+        cd build-embedded
+        cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON \
+                 -DCMAKE_SYSTEM_NAME=Generic \
+                 -DCMAKE_SYSTEM_PROCESSOR=ARM \
+                 -DCMAKE_C_COMPILER=arm-none-eabi-gcc \
+                 -DCMAKE_CXX_COMPILER=arm-none-eabi-g++
+
+    - name: Build Tests for ARM
+      run: |
+        cd build-embedded
+        cmake --build . --config Debug --target contract_tests
+
+    - name: Upload ARM Build Artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: arm-build-artifacts
+        path: build-embedded/
+        retention-days: 7
